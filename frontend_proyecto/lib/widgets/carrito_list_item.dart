@@ -5,10 +5,12 @@ import 'carrito_detail_dialog.dart';
 
 class CarritoListItem extends StatelessWidget {
   final Carrito carrito;
+  final VoidCallback? onDeleted; // Callback para notificar eliminación
 
   const CarritoListItem({
     super.key,
     required this.carrito,
+    this.onDeleted,
   });
 
   @override
@@ -142,39 +144,106 @@ class CarritoListItem extends StatelessWidget {
   }
 
   Future<void> _confirmarEliminacion(BuildContext context) async {
+    print('Iniciando eliminación del carrito ${carrito.id}'); // Debug
+    
+    // Usar una variable para controlar el estado del diálogo
+    bool isDialogShowing = false;
+    
     try {
       // Mostrar indicador de carga
+      isDialogShowing = true;
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+        builder: (dialogContext) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Expanded(child: Text('Eliminando carrito...')),
+            ],
+          ),
         ),
       );
 
+      print('Llamando a ApiService.eliminarCarrito(${carrito.id})'); // Debug
       await ApiService.eliminarCarrito(carrito.id);
+      print('Carrito eliminado exitosamente'); // Debug
 
+      // Cerrar diálogo INMEDIATAMENTE después del éxito
+      if (isDialogShowing && context.mounted) {
+        Navigator.of(context).pop();
+        isDialogShowing = false;
+        print('Diálogo cerrado tras éxito'); // Debug
+      }
+
+      // Esperar un poco antes de mostrar el mensaje de éxito
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Mostrar mensaje de éxito
       if (context.mounted) {
-        Navigator.of(context).pop(); // Cerrar indicador de carga
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Carrito #${carrito.id} eliminado exitosamente'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
         
-        // Recargar la lista - esto podría manejarse mejor con state management
-        // Por ahora, simplemente mostramos el mensaje
+        // Notificar al padre que se eliminó el carrito
+        if (onDeleted != null) {
+          print('Ejecutando callback onDeleted'); // Debug
+          onDeleted!();
+        }
       }
+      
     } catch (e) {
+      print('Error al eliminar carrito: $e'); // Debug
+      
+      // Cerrar diálogo INMEDIATAMENTE en caso de error
+      if (isDialogShowing && context.mounted) {
+        Navigator.of(context).pop();
+        isDialogShowing = false;
+        print('Diálogo cerrado tras error'); // Debug
+      }
+
+      // Esperar un poco antes de mostrar el error
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Mostrar mensaje de error
       if (context.mounted) {
-        Navigator.of(context).pop(); // Cerrar indicador de carga
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al eliminar carrito: $e'),
+            content: Text('Error al eliminar carrito: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
+        
+        // También mostrar un diálogo de error para debugging
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error de conexión'),
+            content: Text('No se pudo eliminar el carrito.\n\nError: ${e.toString()}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      // Asegurar que el diálogo se cierre en cualquier caso
+      if (isDialogShowing && context.mounted) {
+        try {
+          Navigator.of(context).pop();
+          print('Diálogo cerrado en finally'); // Debug
+        } catch (e) {
+          print('Error cerrando diálogo en finally: $e'); // Debug
+        }
       }
     }
   }

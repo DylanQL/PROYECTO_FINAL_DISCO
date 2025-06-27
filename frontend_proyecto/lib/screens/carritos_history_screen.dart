@@ -28,12 +28,18 @@ class _CarritosHistoryScreenState extends State<CarritosHistoryScreen> {
     });
 
     try {
-      final carritosResponse = await ApiService.getCarritos();
+      print('Cargando carritos...'); // Debug
+      final carritosResponse = await ApiService.getCarritos().timeout(
+        const Duration(seconds: 10),
+      );
+      print('Carritos cargados: ${carritosResponse.length}'); // Debug
+      
       setState(() {
         carritos = carritosResponse;
         isLoading = false;
       });
     } catch (e) {
+      print('Error al cargar carritos: $e'); // Debug
       setState(() {
         error = e.toString();
         isLoading = false;
@@ -101,7 +107,10 @@ class _CarritosHistoryScreenState extends State<CarritosHistoryScreen> {
                         padding: const EdgeInsets.all(8),
                         itemCount: carritos.length,
                         itemBuilder: (context, index) {
-                          return CarritoListItem(carrito: carritos[index]);
+                          return CarritoListItem(
+                            carrito: carritos[index],
+                            onDeleted: _cargarCarritos, // Recargar lista cuando se elimine
+                          );
                         },
                       ),
                     ),

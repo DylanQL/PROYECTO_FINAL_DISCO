@@ -57,19 +57,25 @@ class ApiService {
   /// Obtener lista de carritos
   static Future<List<Carrito>> getCarritos({int skip = 0, int limit = 100}) async {
     try {
+      print('Obteniendo carritos: $baseUrl/carrito?skip=$skip&limit=$limit'); // Debug
+      
       final response = await http.get(
         Uri.parse('$baseUrl/carrito?skip=$skip&limit=$limit'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      print('Response status getCarritos: ${response.statusCode}'); // Debug
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> carritosJson = data['carritos'];
+        print('Número de carritos recibidos: ${carritosJson.length}'); // Debug
         return carritosJson.map((json) => Carrito.fromJson(json)).toList();
       } else {
         throw Exception('Error al cargar carritos: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error en getCarritos: $e'); // Debug
       throw Exception('Error de conexión: $e');
     }
   }
@@ -145,16 +151,46 @@ class ApiService {
   /// Eliminar un carrito
   static Future<void> eliminarCarrito(int id) async {
     try {
+      print('Eliminando carrito ID: $id'); // Debug
+      print('URL: $baseUrl/carrito/$id'); // Debug
+      
       final response = await http.delete(
         Uri.parse('$baseUrl/carrito/$id'),
         headers: headers,
+      ).timeout(
+        const Duration(seconds: 15), // Timeout más largo
+        onTimeout: () {
+          throw Exception('Timeout: La eliminación está tomando demasiado tiempo');
+        },
       );
 
-      if (response.statusCode != 200) {
-        final error = jsonDecode(response.body);
-        throw Exception(error['detail'] ?? 'Error al eliminar carrito');
+      print('Response status: ${response.statusCode}'); // Debug
+      print('Response body: ${response.body}'); // Debug
+
+      if (response.statusCode == 200) {
+        print('Carrito eliminado exitosamente del servidor'); // Debug
+        return; // Éxito
+      } else if (response.statusCode == 404) {
+        throw Exception('El carrito no existe o ya fue eliminado');
+      } else {
+        try {
+          final error = jsonDecode(response.body);
+          throw Exception(error['detail'] ?? 'Error del servidor: ${response.statusCode}');
+        } catch (jsonError) {
+          throw Exception('Error del servidor: ${response.statusCode} - ${response.body}');
+        }
       }
+    } on http.ClientException catch (e) {
+      print('Error de conexión HTTP: $e'); // Debug
+      throw Exception('Error de conexión: No se pudo conectar al servidor');
+    } on FormatException catch (e) {
+      print('Error de formato JSON: $e'); // Debug
+      throw Exception('Error de respuesta del servidor');
     } catch (e) {
+      print('Error general en eliminarCarrito: $e'); // Debug
+      if (e.toString().contains('Timeout')) {
+        throw Exception('La eliminación está tomando demasiado tiempo. Verifica tu conexión.');
+      }
       throw Exception('Error al eliminar carrito: $e');
     }
   }
