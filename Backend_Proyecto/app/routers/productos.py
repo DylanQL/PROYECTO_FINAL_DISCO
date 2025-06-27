@@ -23,7 +23,7 @@ async def get_productos(
     db: Session = Depends(get_db)
 ):
     """Obtener lista de productos"""
-    productos = db.query(ProductoModel).offset(skip).limit(limit).all()
+    productos = db.query(ProductoModel).order_by(ProductoModel.id).offset(skip).limit(limit).all()
     total = db.query(ProductoModel).count()
     
     return ProductosListResponse(
