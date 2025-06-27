@@ -4,7 +4,7 @@ import '../models/producto.dart';
 import '../models/carrito.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.18.235:8000';
+  static const String baseUrl = 'http://192.168.56.1:8000';
 
   // Headers comunes
   static Map<String, String> get headers => {
