@@ -31,7 +31,7 @@ async def get_carritos(
     db: Session = Depends(get_db)
 ):
     """Obtener lista de todos los carritos"""
-    carritos = db.query(CarritoModel).offset(skip).limit(limit).all()
+    carritos = db.query(CarritoModel).order_by(CarritoModel.id).offset(skip).limit(limit).all()
     total = db.query(CarritoModel).count()
     
     return CarritosListResponse(
